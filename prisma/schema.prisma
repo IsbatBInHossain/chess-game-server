@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -12,4 +6,42 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// Our User model
+model User {
+  id             Int      @id @default(autoincrement())
+  username       String   @unique
+  hashedPassword String
+  createdAt      DateTime @default(now())
+
+  // Optional fields for user profile
+  firstName String?
+  lastName  String?
+  email     String? @unique
+  bio       String?
+
+  // Relation fields
+  gamesAsWhite Game[] @relation("WhitePlayer")
+  gamesAsBlack Game[] @relation("BlackPlayer")
+
+  // Statistics
+  gamesPlayed Int @default(0)
+  gamesWon    Int @default(0)
+  gamesLost   Int @default(0)
+  gamesDrawn  Int @default(0)
+}
+
+// Our Game model
+model Game {
+  id            Int       @id @default(autoincrement())
+  whitePlayer   User      @relation("WhitePlayer", fields: [whitePlayerId], references: [id])
+  whitePlayerId Int
+  blackPlayer   User      @relation("BlackPlayer", fields: [blackPlayerId], references: [id])
+  blackPlayerId Int
+  pgn           String? // Optional, as it builds up over the game
+  result        String? // e.g., '1-0', '0-1', '1/2-1/2'
+  status        String    @default("IN_PROGRESS") // e.g., 'COMPLETED', 'ABORTED'
+  createdAt     DateTime  @default(now())
+  finishedAt    DateTime?
 }
