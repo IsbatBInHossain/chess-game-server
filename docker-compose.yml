@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./server:/usr/src/app/server
+    depends_on:
+      - db
+      - redis
+    environment:
+      # Read the variables from the .env file
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      # Read the variables from the .env file
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+
+volumes:
+  postgres_data:
