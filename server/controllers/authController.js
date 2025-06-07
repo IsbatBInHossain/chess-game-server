@@ -1,5 +1,6 @@
 import prisma from '../db.js'
 import { hashPassword, comparePassword } from '../utils/password.js'
+import { generateToken } from '../utils/jwt.js'
 
 // Register user contoller
 export const registerUser = async (req, res) => {
@@ -49,7 +50,18 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ error: 'Invalid password.' })
     }
 
-    // Here you would typically generate a JWT token and send it back
+    // Create JWT payload
+    const payload = {
+      id: user.id,
+      username: user.username,
+    }
+
+    // Generate JWT token
+    const token = generateToken(payload)
+
+    // Set token in response header
+    res.setHeader('Authorization', `Bearer ${token}`)
+
     res.status(200).json({ message: 'Login successful', userId: user.id })
   } catch (error) {
     console.error('Error logging in user:', error)

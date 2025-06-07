@@ -1,4 +1,4 @@
-import { verifyToken } from '../utils/jwt'
+import { verifyToken } from '../utils/jwt.js'
 
 // Middleware to authenticate user
 export const authenticateUser = (req, res, next) => {

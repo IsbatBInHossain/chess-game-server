@@ -1,6 +1,7 @@
-import { sign, verify } from 'jsonwebtoken'
-import { JWT_EXPIRATION } from '../constants'
+import jsonwebtoken from 'jsonwebtoken'
+import { JWT_EXPIRATION } from '../constants/index.js'
 
+const { sign, verify } = jsonwebtoken
 // Constants
 const JWT_SECRET = process.env.JWT_SECRET
 
