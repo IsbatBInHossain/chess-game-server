@@ -2,6 +2,7 @@ import { WebSocketServer } from 'ws'
 import jwt from 'jsonwebtoken'
 import redisClient from '../redis.js'
 import { attemptToCreateMatch } from '../game/matchMaker.js'
+import { handlePlayerMove } from '../game/handlePlayerMove.js'
 
 // This map stores the live connections.
 export const clients = new Map()
