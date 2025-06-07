@@ -42,7 +42,7 @@ export function initializeWebSocket(server) {
             'matchmaking_queue',
             authenticatedUserId.toString()
           )
-          await attemptToCreateMatch()
+          await attemptToCreateMatch(clients)
         }
 
         // --- Game Move Logic ---
@@ -59,7 +59,7 @@ export function initializeWebSocket(server) {
           }
 
           // Delegate the complex logic to a dedicated function
-          await handlePlayerMove(authenticatedUserId, gameId, move)
+          await handlePlayerMove(clients, authenticatedUserId, gameId, move)
         }
       } catch (error) {
         console.error('WebSocket Error:', error)
