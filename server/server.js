@@ -1,56 +1,30 @@
-import express from 'express'
 import http from 'http'
-import authRoutes from './routes/authRoutes.js'
+import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
-import { WebSocketServer } from 'ws'
+import authRoutes from './routes/authRoutes.js'
 import redisClient from './redis.js'
+import { initializeWebSocket } from './socket/handler.js'
 
-// Set up app and server
+// --- INITIAL SETUP ---
 const app = express()
-const PORT = process.env.PORT || 8080
 const server = http.createServer(app)
-
-// Base URL for API
+const PORT = process.env.PORT || 8080
 const API_BASE_URL = '/api'
 
-// Middlewares and app set up
-app.use(express.json())
+// --- MIDDLEWARE ---
 app.use(cors())
 app.use(helmet())
+app.use(express.json())
 
-// Use auth routes
+// --- ROUTES ---
 app.use(`${API_BASE_URL}/auth`, authRoutes)
+app.get('/', (req, res) => res.send('API Server is running!'))
 
-app.get('/', (req, res) => {
-  res.send('API Server is running with Prisma!')
-})
+// --- INITIALIZE WEBSOCKETS ---
+initializeWebSocket(server)
 
-// Set up WebSocket server
-const wss = new WebSocketServer({ server })
-
-// Handle WebSocket connections
-wss.on('connection', ws => {
-  console.log('New WebSocket connection established')
-
-  // Handle incoming messages
-  ws.on('message', message => {
-    console.log(`Received message: ${message}`)
-    ws.send(`Server received: ${message}`)
-  })
-
-  // Handle errors
-  ws.on('error', error => {
-    console.error(`WebSocket error: ${error}`)
-  })
-
-  // Handle connection close
-  ws.on('close', () => {
-    console.log('WebSocket connection closed')
-  })
-})
-
-// Start the server and connect to Redis
+// --- SERVER STARTUP ---
 async function startServer() {
   try {
     await redisClient.connect()
