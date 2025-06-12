@@ -1,7 +1,6 @@
-import redisClient from '../redis.js'
-import prisma from '../db.js'
+import { prisma } from '../dependencies.js'
 
-export const attemptToCreateMatch = async clients => {
+export const attemptToCreateMatch = async (clients, redisClient) => {
   const queueLength = await redisClient.lLen('matchmaking_queue')
 
   if (queueLength >= 2) {

@@ -1,6 +1,6 @@
 import { WebSocketServer } from 'ws'
 import jwt from 'jsonwebtoken'
-import redisClient from '../redis.js'
+import { redisClient } from '../dependencies.js'
 import { attemptToCreateMatch } from '../game/matchMaker.js'
 import { handlePlayerMove } from '../game/handlePlayerMove.js'
 
@@ -46,7 +46,7 @@ export function initializeWebSocket(server) {
             'matchmaking_queue',
             authenticatedUserId.toString()
           )
-          await attemptToCreateMatch(clients)
+          await attemptToCreateMatch(clients, redisClient)
         }
 
         // --- Game Move Logic ---
@@ -63,7 +63,13 @@ export function initializeWebSocket(server) {
           }
 
           // Delegate the complex logic to a dedicated function
-          await handlePlayerMove(clients, authenticatedUserId, gameId, move)
+          await handlePlayerMove(
+            clients,
+            redisClient,
+            authenticatedUserId,
+            gameId,
+            move
+          )
         }
       } catch (error) {
         console.error('WebSocket Error:', error)

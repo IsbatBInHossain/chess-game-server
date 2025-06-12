@@ -3,7 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import authRoutes from './routes/authRoutes.js'
-import redisClient from './redis.js'
+import { connectDependencies } from './dependencies.js'
 import { initializeWebSocket } from './socket/handler.js'
 
 // --- INITIAL SETUP ---
@@ -27,8 +27,7 @@ initializeWebSocket(server)
 // --- SERVER STARTUP ---
 async function startServer() {
   try {
-    await redisClient.connect()
-    console.log('Successfully connected to Redis.')
+    await connectDependencies()
 
     server.listen(PORT, () => {
       console.log(`API Server is running on http://localhost:${PORT}`)

@@ -1,19 +1,21 @@
 FROM node:22-alpine
 
-# Set the working directory in the container
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json
+# Copy dependency definitions first for build caching
 COPY package*.json ./
 
-# Install app dependencies
+# Install all dependencies
 RUN npm install
 
-# Copy the rest of app's source code respecting .dockerignore
+# Copy the rest of the application source code
 COPY . .
 
-# expose the port the app runs on
+# Run prisma generate
+RUN npx prisma generate
+
+# Expose the port
 EXPOSE 8080
 
-# Define the command to run the app
+# The start command can be
 CMD [ "npm", "start" ]

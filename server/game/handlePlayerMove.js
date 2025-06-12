@@ -1,8 +1,13 @@
 import { Chess } from 'chess.js'
-import redisClient from '../redis.js'
-import prisma from '../db.js'
+import { prisma } from '../dependencies.js'
 
-export const handlePlayerMove = async (clients, playerId, gameId, move) => {
+export const handlePlayerMove = async (
+  clients,
+  redisClient,
+  playerId,
+  gameId,
+  move
+) => {
   const lockKey = `lock:game:${gameId}`
   const lock = await redisClient.set(lockKey, 'locked', { NX: true, EX: 5 }) // Set mutex lock, expire in 5s
 

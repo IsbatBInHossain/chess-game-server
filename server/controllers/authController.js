@@ -1,4 +1,4 @@
-import prisma from '../db.js'
+import { prisma } from '../dependencies.js'
 import { hashPassword, comparePassword } from '../utils/password.js'
 import { generateToken } from '../utils/jwt.js'
 

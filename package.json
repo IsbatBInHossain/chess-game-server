@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "npx prisma generate && npx prisma migrate deploy && node server/server.js",
+    "start": "npx prisma migrate deploy && node server/server.js",
     "dev": "nodemon server/server.js",
     "test": "cross-env NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js --detectOpenHandles"
   },
