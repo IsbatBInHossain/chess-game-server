@@ -10,7 +10,7 @@ import { initializeWebSocket } from './socket/handler.js'
 const app = express()
 const server = http.createServer(app)
 const PORT = process.env.PORT || 8080
-const API_BASE_URL = '/api'
+export const API_BASE_URL = '/api'
 
 // --- MIDDLEWARE ---
 app.use(cors())
