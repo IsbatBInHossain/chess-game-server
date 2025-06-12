@@ -46,6 +46,10 @@ export const attemptToCreateMatch = async clients => {
     }
     await redisClient.set(`game:${game.id}`, JSON.stringify(initialGameState))
 
+    console.log(
+      `Attempting to find sockets for ${whitePlayerId} and ${blackPlayerId} in clients map. Current keys:`,
+      Array.from(clients.keys())
+    )
     // --- MORE ROBUST NOTIFICATION LOGIC ---
     const whitePlayerSocket = clients.get(whitePlayerId)
     const blackPlayerSocket = clients.get(blackPlayerId)

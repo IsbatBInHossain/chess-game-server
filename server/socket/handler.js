@@ -30,7 +30,11 @@ export function initializeWebSocket(server) {
 
           // Store the authenticated user in the clients map
           clients.set(authenticatedUserId, ws)
-          console.log(`User ${authenticatedUserId} authenticated.`)
+          // ADD THIS LOG:
+          console.log(
+            `Storing connection for userId: ${authenticatedUserId}. Current clients:`,
+            Array.from(clients.keys())
+          )
           ws.send(JSON.stringify({ type: 'auth_success' }))
           return
         }
