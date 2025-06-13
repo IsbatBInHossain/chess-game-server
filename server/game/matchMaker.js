@@ -1,78 +1,81 @@
 import { prisma } from '../dependencies.js'
 
 export const attemptToCreateMatch = async (clients, redisClient) => {
-  const queueLength = await redisClient.lLen('matchmaking_queue')
+  const LOCK_KEY = 'matchmaking_lock'
+  const LOCK_TTL = 5000 // 5 seconds to avoid deadlocks
 
-  if (queueLength >= 2) {
-    // Pop two player IDs from the queue. They will be strings.
-    const playerOneIdStr = await redisClient.rPop('matchmaking_queue')
-    const playerTwoIdStr = await redisClient.rPop('matchmaking_queue')
+  // Try to acquire the lock. Set if not exists.
+  const lockAcquired = await redisClient.set(LOCK_KEY, 'locked', {
+    NX: true,
+    PX: LOCK_TTL,
+  })
 
-    if (!playerOneIdStr || !playerTwoIdStr) return
+  if (!lockAcquired) {
+    console.log('Matchmaker is already running. Skipping this attempt.')
+    return
+  }
 
-    console.log(
-      `Popped players from queue: ${playerOneIdStr}, ${playerTwoIdStr}`
-    )
+  try {
+    const queueLength = await redisClient.lLen('matchmaking_queue')
 
-    // Convert to numbers for database and map keys
-    const playerOneId = parseInt(playerOneIdStr)
-    const playerTwoId = parseInt(playerTwoIdStr)
+    if (queueLength >= 2) {
+      const playerOneIdStr = await redisClient.rPop('matchmaking_queue')
+      const playerTwoIdStr = await redisClient.rPop('matchmaking_queue')
 
-    // Assign colors randomly
-    let whitePlayerId, blackPlayerId
-    if (Math.random() > 0.5) {
-      whitePlayerId = playerOneId
-      blackPlayerId = playerTwoId
-    } else {
-      whitePlayerId = playerTwoId
-      blackPlayerId = playerOneId
-    }
+      if (!playerOneIdStr || !playerTwoIdStr) {
+        console.log('Failed to pop two players despite queue length.')
+        return
+      }
 
-    console.log(
-      `Assigned colors: White=${whitePlayerId}, Black=${blackPlayerId}`
-    )
+      const playerOneId = parseInt(playerOneIdStr)
+      const playerTwoId = parseInt(playerTwoIdStr)
 
-    const game = await prisma.game.create({
-      data: { whitePlayerId, blackPlayerId, status: 'IN_PROGRESS' },
-    })
-    console.log(`Created game ${game.id} in database.`)
+      let whitePlayerId, blackPlayerId
+      if (Math.random() > 0.5) {
+        whitePlayerId = playerOneId
+        blackPlayerId = playerTwoId
+      } else {
+        whitePlayerId = playerTwoId
+        blackPlayerId = playerOneId
+      }
 
-    const initialGameState = {
-      board: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-      turn: 'w',
-      whiteTime: 300,
-      blackTime: 300,
-    }
-    await redisClient.set(`game:${game.id}`, JSON.stringify(initialGameState))
+      const game = await prisma.game.create({
+        data: { whitePlayerId, blackPlayerId, status: 'IN_PROGRESS' },
+      })
 
-    console.log(
-      `Attempting to find sockets for ${whitePlayerId} and ${blackPlayerId} in clients map. Current keys:`,
-      Array.from(clients.keys())
-    )
-    // --- MORE ROBUST NOTIFICATION LOGIC ---
-    const whitePlayerSocket = clients.get(whitePlayerId)
-    const blackPlayerSocket = clients.get(blackPlayerId)
+      const initialGameState = {
+        board: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+        turn: 'w',
+        whiteTime: 300,
+        blackTime: 300,
+      }
+      await redisClient.set(`game:${game.id}`, JSON.stringify(initialGameState))
 
-    if (whitePlayerSocket) {
-      whitePlayerSocket.send(
-        JSON.stringify({ type: 'game_start', gameId: game.id, color: 'w' })
-      )
-      console.log(`Sent game_start to White Player: ${whitePlayerId}`)
-    } else {
+      const whitePlayerSocket = clients.get(whitePlayerId)
+      const blackPlayerSocket = clients.get(blackPlayerId)
+
+      if (whitePlayerSocket) {
+        whitePlayerSocket.send(
+          JSON.stringify({ type: 'game_start', gameId: game.id, color: 'w' })
+        )
+      }
+
+      if (blackPlayerSocket) {
+        blackPlayerSocket.send(
+          JSON.stringify({ type: 'game_start', gameId: game.id, color: 'b' })
+        )
+      }
+
       console.log(
-        `Could not find active socket for White Player: ${whitePlayerId}`
+        `Match created: Game ${game.id} between ${whitePlayerId} (white) and ${blackPlayerId} (black)`
       )
-    }
-
-    if (blackPlayerSocket) {
-      blackPlayerSocket.send(
-        JSON.stringify({ type: 'game_start', gameId: game.id, color: 'b' })
-      )
-      console.log(`Sent game_start to Black Player: ${blackPlayerId}`)
     } else {
-      console.log(
-        `Could not find active socket for Black Player: ${blackPlayerId}`
-      )
+      console.log('Not enough players to create a match.')
     }
+  } catch (err) {
+    console.error('Matchmaker failed:', err)
+  } finally {
+    // Release the lock
+    await redisClient.del(LOCK_KEY)
   }
 }
