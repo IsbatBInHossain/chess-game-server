@@ -33,8 +33,16 @@ export const attemptToCreateMatch = async (
         return
       }
 
-      const playerOneId = parseInt(playerOneIdStr)
-      const playerTwoId = parseInt(playerTwoIdStr)
+      let playerOneId, playerTwoId
+      if (isGuestGame) {
+        // For guests, the IDs are already strings (UUIDs)
+        playerOneId = playerOneIdStr
+        playerTwoId = playerTwoIdStr
+      } else {
+        // For registered users, the IDs are numbers
+        playerOneId = parseInt(playerOneIdStr)
+        playerTwoId = parseInt(playerTwoIdStr)
+      }
 
       let whitePlayerId, blackPlayerId
       if (Math.random() > 0.5) {
@@ -73,12 +81,16 @@ export const attemptToCreateMatch = async (
         whitePlayerSocket.send(
           JSON.stringify({ type: 'game_start', gameId, color: 'w' })
         )
+      } else {
+        console.warn(`White player socket not found for ID: ${whitePlayerId}`)
       }
 
       if (blackPlayerSocket) {
         blackPlayerSocket.send(
           JSON.stringify({ type: 'game_start', gameId: gameId, color: 'b' })
         )
+      } else {
+        console.warn(`Black player socket not found for ID: ${blackPlayerId}`)
       }
 
       console.log(
