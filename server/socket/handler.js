@@ -85,7 +85,8 @@ export function initializeWebSocket(server) {
             redisClient,
             authenticatedUserId,
             gameId,
-            move
+            move,
+            ws.isGuest
           )
         }
       } catch (error) {

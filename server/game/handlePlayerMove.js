@@ -6,7 +6,8 @@ export const handlePlayerMove = async (
   redisClient,
   playerId,
   gameId,
-  move
+  move,
+  isGuestGame = false
 ) => {
   const lockKey = `lock:game:${gameId}`
   const lock = await redisClient.set(lockKey, 'locked', { NX: true, EX: 5 }) // Set mutex lock, expire in 5s
@@ -27,11 +28,12 @@ export const handlePlayerMove = async (
 
     // Validate the move
     const playerColor = gameState.turn
-    const dbGame = await prisma.game.findUnique({ where: { id: gameId } })
+    const whitePlayerId = gameState.whitePlayerId
+    const blackPlayerId = gameState.blackPlayerId
 
     if (
-      (playerColor === 'w' && playerId !== dbGame.whitePlayerId) ||
-      (playerColor === 'b' && playerId !== dbGame.blackPlayerId)
+      (playerColor === 'w' && playerId !== whitePlayerId) ||
+      (playerColor === 'b' && playerId !== blackPlayerId)
     ) {
       // It's not this player's turn.
       return
@@ -67,8 +69,8 @@ export const handlePlayerMove = async (
       turn: gameState.turn,
     }
 
-    const whitePlayerSocket = clients.get(dbGame.whitePlayerId)
-    const blackPlayerSocket = clients.get(dbGame.blackPlayerId)
+    const whitePlayerSocket = clients.get(whitePlayerId)
+    const blackPlayerSocket = clients.get(blackPlayerId)
 
     if (whitePlayerSocket)
       whitePlayerSocket.send(JSON.stringify(moveUpdatePayload))
@@ -77,15 +79,17 @@ export const handlePlayerMove = async (
 
     // If game is over, update permanent storage
     if (gameResult) {
-      await prisma.game.update({
-        where: { id: gameId },
-        data: {
-          result: gameResult,
-          status: 'COMPLETED',
-          pgn: game.pgn(),
-          finishedAt: new Date(),
-        },
-      })
+      if (!isGuestGame) {
+        await prisma.game.update({
+          where: { id: gameId },
+          data: {
+            result: gameResult,
+            status: 'COMPLETED',
+            pgn: game.pgn(),
+            finishedAt: new Date(),
+          },
+        })
+      }
       // Remove the game state from Redis
       await redisClient.del(`game:${gameId}`)
     }
