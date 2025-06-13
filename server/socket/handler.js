@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken'
 import { redisClient } from '../dependencies.js'
 import { attemptToCreateMatch } from '../game/matchMaker.js'
 import { handlePlayerMove } from '../game/handlePlayerMove.js'
+import { handleGameTermination } from '../game/gameAction.js'
+import { TerminationReasons } from '../constants/index.js'
 
 // This map stores the live connections.
 export const clients = new Map()
@@ -87,6 +89,30 @@ export function initializeWebSocket(server) {
             gameId,
             move,
             ws.isGuest
+          )
+        }
+
+        // --- Game Termination Logic ---
+        if (Object.values(TerminationReasons).includes(data.type)) {
+          const { gameId } = data
+          const reason = data.type
+
+          if (!gameId) {
+            return ws.send(
+              JSON.stringify({
+                type: 'error',
+                message: 'Missing gameId for termination.',
+              })
+            )
+          }
+
+          // Delegate the complex logic to a dedicated function
+          await handleGameTermination(
+            clients,
+            redisClient,
+            gameId,
+            authenticatedUserId,
+            reason
           )
         }
       } catch (error) {
