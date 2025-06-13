@@ -56,6 +56,7 @@ export const loginUser = async (req, res) => {
     const payload = {
       id: user.id,
       username: user.username,
+      isGuest: false,
     }
 
     // Generate JWT token
