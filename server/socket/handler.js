@@ -26,11 +26,15 @@ export function initializeWebSocket(server) {
 
           const decoded = jwt.verify(token, process.env.JWT_SECRET)
           authenticatedUserId = decoded.id
+
+          if (decoded.isGuest) ws.isGuest = true
+          else ws.isGuest = false
+
           if (!authenticatedUserId) return ws.close(1008, 'Invalid token')
 
           // Store the authenticated user in the clients map
           clients.set(authenticatedUserId, ws)
-          // ADD THIS LOG:
+
           console.log(
             `Storing connection for userId: ${authenticatedUserId}. Current clients:`,
             Array.from(clients.keys())
@@ -48,11 +52,18 @@ export function initializeWebSocket(server) {
         // --- Matchmaking Logic ---
         if (data.type === 'find_match') {
           console.log(`User ${authenticatedUserId} is looking for a match.`)
-          await redisClient.lPush(
-            'matchmaking_queue',
-            authenticatedUserId.toString()
-          )
-          await attemptToCreateMatch(clients, redisClient)
+          if (ws.isGuest) {
+            await redisClient.lPush(
+              'matchmaking_queue:guest',
+              authenticatedUserId.toString()
+            )
+          } else {
+            await redisClient.lPush(
+              'matchmaking_queue',
+              authenticatedUserId.toString()
+            )
+          }
+          await attemptToCreateMatch(clients, redisClient, ws.isGuest)
         }
 
         // --- Game Move Logic ---
@@ -88,7 +99,19 @@ export function initializeWebSocket(server) {
     ws.on('close', () => {
       if (authenticatedUserId) {
         clients.delete(authenticatedUserId)
-        redisClient.lRem('matchmaking_queue', 0, authenticatedUserId.toString())
+        if (ws.isGuest) {
+          redisClient.lRem(
+            'matchmaking_queue:guest',
+            0,
+            authenticatedUserId.toString()
+          )
+        } else {
+          redisClient.lRem(
+            'matchmaking_queue',
+            0,
+            authenticatedUserId.toString()
+          )
+        }
         console.log(`User ${authenticatedUserId} disconnected.`)
       } else {
         console.log('Unauthenticated client disconnected.')

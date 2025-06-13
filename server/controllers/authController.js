@@ -78,7 +78,7 @@ export const loginAsGuest = async (req, res) => {
 
   const guestId = uuidv4()
   const payload = {
-    guestId,
+    id: guestId,
     username: guestUsername,
     isGuest: true,
   }
