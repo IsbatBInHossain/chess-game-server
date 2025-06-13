@@ -39,6 +39,12 @@ export function initializeWebSocket(server) {
           return
         }
 
+        // If the user is not authenticated, we can't process any other messages.
+        if (!authenticatedUserId) {
+          // Close the connection because the client is not following the protocol.
+          return ws.close(1008, 'Client must authenticate first')
+        }
+
         // --- Matchmaking Logic ---
         if (data.type === 'find_match') {
           console.log(`User ${authenticatedUserId} is looking for a match.`)
