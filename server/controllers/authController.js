@@ -1,6 +1,8 @@
 import { prisma } from '../dependencies.js'
 import { hashPassword, comparePassword } from '../utils/password.js'
 import { generateToken } from '../utils/jwt.js'
+import { generateUsername } from 'friendly-username-generator'
+import { v4 as uuidv4 } from 'uuid'
 
 // Register user contoller
 export const registerUser = async (req, res) => {
@@ -67,4 +69,23 @@ export const loginUser = async (req, res) => {
     console.error('Error logging in user:', error)
     res.status(500).json({ error: 'Internal server error.' })
   }
+}
+
+// Login as guest
+export const loginAsGuest = async (req, res) => {
+  const guestUsername = generateUsername()
+
+  const guestId = uuidv4()
+  const payload = {
+    guestId,
+    username: guestUsername,
+    isGuest: true,
+  }
+  const token = generateToken(payload)
+  res.setHeader('Authorization', `Bearer ${token}`)
+  res.status(200).json({
+    message: 'Guest login successful',
+    guestId,
+    username: guestUsername,
+  })
 }
