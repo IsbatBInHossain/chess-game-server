@@ -69,8 +69,9 @@ export const attemptToCreateMatch = async (
         whitePlayerId,
         blackPlayerId,
         gameId,
-        whiteTime: 300,
-        blackTime: 300,
+        whiteTime: 300000,
+        blackTime: 300000,
+        lastMoveTimestamp: Date.now(),
       }
       await redisClient.set(`game:${gameId}`, JSON.stringify(initialGameState))
 

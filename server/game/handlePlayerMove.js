@@ -1,5 +1,6 @@
 import { Chess } from 'chess.js'
 import { prisma } from '../dependencies.js'
+import { handleGameTermination } from './gameAction.js'
 
 export const handlePlayerMove = async (
   clients,
@@ -26,7 +27,6 @@ export const handlePlayerMove = async (
     const gameState = JSON.parse(gameStateJSON)
     const game = new Chess(gameState.board) // Load the FEN into chess.js
 
-    // Validate the move
     const playerColor = gameState.turn
     const whitePlayerId = gameState.whitePlayerId
     const blackPlayerId = gameState.blackPlayerId
@@ -39,7 +39,33 @@ export const handlePlayerMove = async (
       return
     }
 
-    // Is the move legal?
+    const moveTimestamp = Date.now()
+    const timeElapsed = moveTimestamp - gameState.lastMoveTimestamp
+
+    // Check if the time elapsed is within this player's turn time limit
+    const playerTimeLimit =
+      playerColor === 'w' ? gameState.whiteTime : gameState.blackTime
+    if (timeElapsed > playerTimeLimit) {
+      // Player took too long to make a move
+      return await handleGameTermination(
+        clients,
+        redisClient,
+        gameId,
+        playerId,
+        'timeout'
+      )
+    }
+    // Update the player's time
+    if (playerColor === 'w') {
+      gameState.whiteTime -= timeElapsed
+    } else {
+      gameState.blackTime -= timeElapsed
+    }
+
+    // Update the last move timestamp
+    gameState.lastMoveTimestamp = moveTimestamp
+
+    // Validate and make the move
     const result = game.move(move)
     if (result === null) {
       // Illegal move
@@ -53,9 +79,23 @@ export const handlePlayerMove = async (
     // Check for game over
     let gameResult = null
     if (game.isCheckmate()) {
-      gameResult = playerColor === 'w' ? '1-0' : '0-1'
+      gameResult = playerColor === 'w' ? '0-1' : '1-0'
+      return await handleGameTermination(
+        clients,
+        redisClient,
+        gameId,
+        playerId,
+        'checkmate'
+      )
     } else if (game.isDraw()) {
       gameResult = '1/2-1/2'
+      return await handleGameTermination(
+        clients,
+        redisClient,
+        gameId,
+        playerId,
+        'draw'
+      )
     }
 
     // Save the new state
@@ -67,6 +107,8 @@ export const handlePlayerMove = async (
       move: move,
       fen: gameState.board,
       turn: gameState.turn,
+      whiteTime: gameState.whiteTime,
+      blackTime: gameState.blackTime,
     }
 
     const whitePlayerSocket = clients.get(whitePlayerId)
