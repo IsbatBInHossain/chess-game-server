@@ -6,5 +6,5 @@ export const TerminationReasons = {
   RESIGNATION: 'resign',
   TIMEOUT: 'timeout',
   ABANDONMENT: 'abandonment',
-  ABORTED: 'aborted',
+  ABORTED: 'abort',
 }

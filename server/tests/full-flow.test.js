@@ -1,11 +1,10 @@
 import request from 'supertest'
 import WebSocket from 'ws'
 
-// The server's address FROM THE PERSPECTIVE of a process inside the same container.
 const BASE_URL = 'http://localhost:8080'
 const WS_URL = 'ws://localhost:8080'
 
-// The waitForMessage helper is perfect. Keep it.
+// The waitForMessage helper is perfect. Keep it as is.
 const waitForMessage = (ws, expectedType) => {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -45,8 +44,8 @@ describe('Full Chess Game Flow Integration Test', () => {
   let player1 = {}
   let player2 = {}
 
+  // Setup runs once to create the users for all tests in this suite.
   beforeAll(async () => {
-    // Use the explicit URL to make HTTP requests to the running server.
     await request(BASE_URL)
       .post('/api/auth/register')
       .send({ username: 'testuser1', password: 'password' })
@@ -68,9 +67,10 @@ describe('Full Chess Game Flow Integration Test', () => {
       throw new Error('Failed to get tokens')
   })
 
+  // Helper to create an authenticated client.
   const createAuthenticatedClient = token => {
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(WS_URL) // Use the explicit WebSocket URL.
+      const ws = new WebSocket(WS_URL)
       ws.on('open', () => ws.send(JSON.stringify({ type: 'auth', token })))
       ws.on('error', reject)
       waitForMessage(ws, 'auth_success')
@@ -79,7 +79,8 @@ describe('Full Chess Game Flow Integration Test', () => {
     })
   }
 
-  test('Two players should connect, find a match, and make a move', async () => {
+  // Helper to setup a new game for a test case.
+  const setupNewGame = async () => {
     const ws1 = await createAuthenticatedClient(player1.token)
     const ws2 = await createAuthenticatedClient(player2.token)
 
@@ -93,13 +94,20 @@ describe('Full Chess Game Flow Integration Test', () => {
       p1GameStartPromise,
       p2GameStartPromise,
     ])
-
-    expect(gameData1.gameId).toBeDefined()
-    expect(gameData1.gameId).toEqual(gameData2.gameId)
     const gameId = gameData1.gameId
 
     const whitePlayerSocket = gameData1.color === 'w' ? ws1 : ws2
     const blackPlayerSocket = gameData1.color === 'w' ? ws2 : ws1
+
+    return { gameId, whitePlayerSocket, blackPlayerSocket, ws1, ws2 }
+  }
+
+  /**
+   * TEST CASE 1: The "Happy Path" - a normal move is made.
+   */
+  test('Two players should connect, find a match, and make a move', async () => {
+    const { gameId, whitePlayerSocket, blackPlayerSocket, ws1, ws2 } =
+      await setupNewGame()
 
     const whiteMovePromise = waitForMessage(whitePlayerSocket, 'move_made')
     const blackMovePromise = waitForMessage(blackPlayerSocket, 'move_made')
@@ -113,8 +121,65 @@ describe('Full Chess Game Flow Integration Test', () => {
       blackMovePromise,
     ])
 
-    expect(moveResult1.fen).toEqual(moveResult2.fen)
     expect(moveResult1.turn).toBe('b')
+    expect(moveResult1.fen).toEqual(moveResult2.fen)
+
+    ws1.close()
+    ws2.close()
+  })
+
+  /**
+   * TEST CASE 2: Player Resignation.
+   */
+  test('A player should be able to resign, ending the game', async () => {
+    const { gameId, whitePlayerSocket, blackPlayerSocket, ws1, ws2 } =
+      await setupNewGame()
+
+    // Setup listeners for the game_over event
+    const whiteGameOverPromise = waitForMessage(whitePlayerSocket, 'game_over')
+    const blackGameOverPromise = waitForMessage(blackPlayerSocket, 'game_over')
+
+    // Black resigns
+    blackPlayerSocket.send(JSON.stringify({ type: 'resign', gameId }))
+
+    // Wait for both players to receive the game over message
+    const [gameOverData1, gameOverData2] = await Promise.all([
+      whiteGameOverPromise,
+      blackGameOverPromise,
+    ])
+
+    // Assert that the game ended correctly
+    expect(gameOverData1.reason).toBe('resign')
+    expect(gameOverData1.winner).toBe('white')
+    expect(gameOverData1.result).toBe('1-0')
+    expect(gameOverData1).toEqual(gameOverData2)
+
+    ws1.close()
+    ws2.close()
+  })
+
+  /**
+   * TEST CASE 3: Game Abort.
+   */
+  test('A player should be able to abort, ending the game', async () => {
+    const { gameId, whitePlayerSocket, blackPlayerSocket, ws1, ws2 } =
+      await setupNewGame()
+
+    const whiteGameOverPromise = waitForMessage(whitePlayerSocket, 'game_over')
+    const blackGameOverPromise = waitForMessage(blackPlayerSocket, 'game_over')
+
+    // White aborts
+    whitePlayerSocket.send(JSON.stringify({ type: 'abort', gameId }))
+
+    const [gameOverData1, gameOverData2] = await Promise.all([
+      whiteGameOverPromise,
+      blackGameOverPromise,
+    ])
+
+    expect(gameOverData1.reason).toBe('abort')
+    expect(gameOverData1.winner).toBe('none')
+    expect(gameOverData1.result).toBe('*')
+    expect(gameOverData1).toEqual(gameOverData2)
 
     ws1.close()
     ws2.close()
