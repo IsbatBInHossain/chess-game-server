@@ -13,7 +13,12 @@ const PORT = process.env.PORT || 8080
 export const API_BASE_URL = '/api'
 
 // --- MIDDLEWARE ---
-app.use(cors())
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL,
+    exposedHeaders: ['Authorization'],
+  })
+)
 app.use(helmet())
 app.use(express.json())
 
