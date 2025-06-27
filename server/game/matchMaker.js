@@ -74,6 +74,7 @@ export const attemptToCreateMatch = async (
         lastMoveTimestamp: Date.now(),
       }
       await redisClient.set(`game:${gameId}`, JSON.stringify(initialGameState))
+      console.log(initialGameState)
 
       const whitePlayerSocket = clients.get(whitePlayerId)
       const blackPlayerSocket = clients.get(blackPlayerId)
@@ -94,7 +95,13 @@ export const attemptToCreateMatch = async (
 
       if (blackPlayerSocket) {
         blackPlayerSocket.send(
-          JSON.stringify({ type: 'game_start', gameId: gameId, color: 'b' })
+          JSON.stringify({
+            type: 'game_start',
+            gameId: gameId,
+            color: 'b',
+            whiteTime: initialGameState.whiteTime,
+            blackTime: initialGameState.blackTime,
+          })
         )
       } else {
         console.warn(`Black player socket not found for ID: ${blackPlayerId}`)
