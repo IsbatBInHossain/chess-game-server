@@ -80,7 +80,13 @@ export const attemptToCreateMatch = async (
 
       if (whitePlayerSocket) {
         whitePlayerSocket.send(
-          JSON.stringify({ type: 'game_start', gameId, color: 'w' })
+          JSON.stringify({
+            type: 'game_start',
+            gameId,
+            color: 'w',
+            whiteTime: initialGameState.whiteTime,
+            blackTime: initialGameState.blackTime,
+          })
         )
       } else {
         console.warn(`White player socket not found for ID: ${whitePlayerId}`)
