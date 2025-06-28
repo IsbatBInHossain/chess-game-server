@@ -74,7 +74,7 @@ export const attemptToCreateMatch = async (
         lastMoveTimestamp: Date.now(),
       }
       await redisClient.set(`game:${gameId}`, JSON.stringify(initialGameState))
-      console.log(initialGameState)
+      // console.log(initialGameState)
 
       const whitePlayerSocket = clients.get(whitePlayerId)
       const blackPlayerSocket = clients.get(blackPlayerId)
