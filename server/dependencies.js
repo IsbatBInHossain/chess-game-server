@@ -2,9 +2,20 @@ import { PrismaClient } from '@prisma/client'
 import { createClient } from 'redis'
 
 export const prisma = new PrismaClient()
-export const redisClient = createClient({
+// Redis options object
+const redisOptions = {
   url: process.env.REDIS_URL,
-})
+}
+
+// Add the TLS socket configuration in prod
+if (process.env.NODE_ENV === 'production') {
+  redisOptions.socket = {
+    tls: true,
+    rejectUnauthorized: false,
+  }
+}
+
+export const redisClient = createClient(redisOptions)
 
 let isRedisConnected = false
 
