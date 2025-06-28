@@ -3,7 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import authRoutes from './routes/authRoutes.js'
-import { connectDependencies } from './dependencies.js'
+import { connectDependencies, prisma } from './dependencies.js'
 import { initializeWebSocket } from './socket/handler.js'
 
 // --- INITIAL SETUP ---
@@ -24,7 +24,22 @@ app.use(express.json())
 
 // --- ROUTES ---
 app.use(`${API_BASE_URL}/auth`, authRoutes)
-app.get('/', (req, res) => res.send('API Server is running!'))
+app.get('/api/heartbeat', (req, res) => {
+  prisma.$queryRaw`SELECT 1`
+    .then(() => {
+      res.status(200).json({
+        status: 'Ok',
+        message: 'Service running',
+      })
+    })
+    .catch(error => {
+      console.error('Heartbeat check failed:', error)
+      res.status(500).json({
+        status: 'Failed',
+        message: 'Service not running',
+      })
+    })
+})
 
 // --- INITIALIZE WEBSOCKETS ---
 initializeWebSocket(server)
